@@ -194,14 +194,17 @@ Level.prototype.obstacleAt = function(pos, size) {
   if (xStart < 0 || xEnd > this.width || yStart < 0 || yEnd > this.height)
       return 'wall';
   
-     if (xStart < 0 || xEnd > this.width || yStart < 0)
-    return "wall";
+     //if (xStart < 0 || xEnd > this.width || yStart < 0)
+    //return "wall";
   if (yEnd > this.height)
     return "lava";
   for (var y = yStart; y < yEnd; y++) {
     for (var x = xStart; x < xEnd; x++) {
       var fieldType = this.grid[y][x];
-      if (fieldType) return fieldType; 
+      if (fieldType){
+          console.log(fieldType);
+          return fieldType;
+      }
     
           }
   }
@@ -284,6 +287,10 @@ Player.prototype.moveY = function(step, level, keys) {
   } else {
     this.pos = newPos;
   }
+    if (obstacle=='lava') {
+        console.log ("dead");
+        alert('Start Over');
+    }
 };
 
 
@@ -385,8 +392,3 @@ function runGame(plans, Display) {
   }
   startLevel(0);
 }   
-      
-      
-      
-      
-
