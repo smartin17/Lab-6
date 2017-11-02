@@ -49,7 +49,14 @@ Vector.prototype.plus = function(other) {
 // Vector arithmetic: v_1 * factor = <a,b>*factor = <a*factor,b*factor>
 Vector.prototype.times = function(factor) {
   return new Vector(this.x * factor, this.y * factor);
+  var actorChars = {
+  "@": Player,
+  "o": Coin,
+  "=": Lava, "|": Lava, "v": Lava
 };
+};
+
+
 
 
 // A Player has a size, speed and position.
@@ -67,6 +74,29 @@ function elt(name, className) {
   if (className) elt.className = className;
   return elt;
 }
+
+function Lava(pos, ch) {
+  this.pos = pos;
+  this.size = new Vector(1, 1);
+  if (ch == "=") {
+    this.speed = new Vector(2, 0);
+  } else if (ch == "|") {
+    this.speed = new Vector(0, 2);
+  } else if (ch == "v") {
+    this.speed = new Vector(0, 3);
+    this.repeatPos = pos;
+  }
+}
+Lava.prototype.type = "lava";
+
+
+function Coin(pos) {
+  this.basePos = this.pos = pos.plus(new Vector(0.2, 0.1));
+  this.size = new Vector(0.6, 0.6);
+  this.wobble = Math.random() * Math.PI * 2;
+}
+Coin.prototype.type = "coin";
+
 
 // Main display class. We keep track of the scroll window using it.
 function DOMDisplay(parent, level) {
@@ -177,6 +207,19 @@ Level.prototype.obstacleAt = function(pos, size) {
   }
 };
 
+Level.prototype.actorAt = function(actor) {
+  for (var i = 0; i < this.actors.length; i++) {
+    var other = this.actors[i];
+    if (other != actor &&
+        actor.pos.x + actor.size.x > other.pos.x &&
+        actor.pos.x < other.pos.x + other.size.x &&
+        actor.pos.y + actor.size.y > other.pos.y &&
+        actor.pos.y < other.pos.y + other.size.y)
+      return other;
+    var maxStep = 0.05;
+  }
+};
+
 // Update simulation each step based on keys & step size
 Level.prototype.animate = function(step, keys) {
 
@@ -193,6 +236,23 @@ Level.prototype.animate = function(step, keys) {
 var maxStep = 0.05;
 
 var playerXSpeed = 7;
+
+Lava.prototype.act = function(step, level) {
+  var newPos = this.pos.plus(this.speed.times(step));
+  if (!level.obstacleAt(newPos, this.size))
+    this.pos = newPos;
+  else if (this.repeatPos)
+    this.pos = this.repeatPos;
+  else
+    this.speed = this.speed.times(-1);
+};
+
+var wobbleSpeed = 8, wobbleDist = 0.07;
+Coin.prototype.act = function(step) {
+  this.wobble += step * wobbleSpeed;
+  var wobblePos = Math.sin(this.wobble) * wobbleDist;
+  this.pos = this.basePos.plus(new Vector(0, wobblePos));
+};
 
 Player.prototype.moveX = function(step, level, keys) {
   this.speed.x = 0;
@@ -232,6 +292,22 @@ Player.prototype.act = function(step, level, keys) {
   this.moveY(step, level, keys);
 };
 
+Level.prototype.playerTouched = function(type, actor) {
+  if (type == "lava" && this.status == null) {
+    this.status = "lost";
+    this.finishDelay = 1;
+  } else if (type == "coin") {
+    this.actors = this.actors.filter(function(other) {
+      return other != actor;
+    });
+    if (!this.actors.some(function(actor) {
+      return actor.type == "coin";
+    })) {
+      this.status = "won";
+      this.finishDelay = 1;
+    }
+  }
+};
 
 // Arrow key codes for readibility
 var arrowCodes = {37: "left", 38: "up", 39: "right", 40: "down"};
@@ -298,7 +374,19 @@ function runGame(plans, Display) {
   function startLevel(n) {
     // Create a new level using the nth element of array plans
     // Pass in a reference to Display function, DOMDisplay (in index.html).
-    runLevel(new Level(plans[n]), Display);
+     runLevel(new Level(plans[n]), Display, function(status) {
+      if (status == "lost")
+        startLevel(n);
+      else if (n < plans.length - 1)
+        startLevel(n + 1);
+      else
+        console.log("You win!");
+    });
   }
   startLevel(0);
-}
+}   
+      
+      
+      
+      
+
